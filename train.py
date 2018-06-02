@@ -31,7 +31,7 @@ train_df = pd.read_table('../../datasets/train.txt',
 train_df.columns = ['filename', 'label']
 train_df['label'] = train_df['label'].apply(lambda x: x-1)
 
-# 随机生成验证集
+# create validation set randomly
 np.random.seed(random_seed)
 valid_name = pd.DataFrame()
 for _, df in train_df.groupby('label'):
@@ -63,7 +63,6 @@ summary_valid_dir = '../' + model_name + '/valid_logs'
 
 # Reads an image from a file, decodes it into a dense tensor, and resizes it
 # to a fixed shape.
-# 生成data loader 含数据预处理（增强）
 def _train_parse_function(filename, label):
   image_string = tf.read_file(filename)
   img = tf.image.decode_jpeg(image_string, channels=channels)
@@ -176,8 +175,6 @@ saver = tf.train.Saver(max_to_keep=3)
 with tf.Session() as sess:
 
     if status == 'train':
-        # sess.run(sess.graph.get_tensor_by_name('beta1_power/Assign:0'))
-        # sess.run(sess.graph.get_tensor_by_name('beta2_power/Assign:0'))
         sess.run(init)
         sess.run(model.pretrained())
     elif status == 'restore':
