@@ -56,14 +56,13 @@ test_init_op = iterator.make_initializer(test_dataset)
 inputs = tf.placeholder(tf.float32, [None, input_size, input_size, channels])
 
 model = nets.DenseNet201(inputs, is_training=True, classes=img_class, stem=True)
-with tf.variable_scope('top_layer'):
-    top_layer = tf.reduce_mean(model, [1, 2], name='avgpool')
-    if droprate > 0:
-        top_layer = tf.layers.dropout(top_layer, droprate)
-    if fc_mid_layers > 0:
-        top_layer = tf.contrib.layers.fully_connected(top_layer, fc_mid_layers)
-    top_layer = tf.contrib.layers.fully_connected(top_layer, img_class)
-    top_layer = tf.contrib.layers.softmax(top_layer)
+top_layer = tf.reduce_mean(model, [1, 2], name='avgpool')
+if droprate > 0:
+    top_layer = tf.layers.dropout(top_layer, droprate)
+if fc_mid_layers > 0:
+    top_layer = tf.contrib.layers.fully_connected(top_layer, fc_mid_layers)
+top_layer = tf.contrib.layers.fully_connected(top_layer, img_class)
+top_layer = tf.contrib.layers.softmax(top_layer)
 
 saver = tf.train.Saver()
 test_label = pd.Series()
