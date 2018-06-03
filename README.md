@@ -1,7 +1,7 @@
 # transfer_learning_tensorflow
 A easy transfer learning program using tensorflow and tensornets  
 用tensorflow和开源库[tensornets](https://github.com/taehoonlee/tensornets)实现迁移学习。  
-### 程序主要针对百度电石竞赛商家招牌分类，也可迁移到其他任务。
+### 程序主要针对百度点石竞赛商家招牌分类，也可迁移到其他任务。
 ## 功能简介：
 - 支持35个模型
 - 可设置随机图像增强
