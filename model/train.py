@@ -26,7 +26,7 @@ random_seed = 600        # the random seed for selecting valid image
 num_train_vars = 150     # the last nums of trainable variables
 random_aug_thresh = 0.25 # the ratio of pics for random augmentation
 
-train_df = pd.read_table('../../datasets/train.txt',
+train_df = pd.read_table('../datasets/train.txt',
                          sep=' ', header=None)
 train_df.columns = ['filename', 'label']
 train_df['label'] = train_df['label'].apply(lambda x: x-1)
@@ -42,7 +42,7 @@ for _, df in train_df.groupby('label'):
 train_name = train_df[~(train_df['filename'].isin(valid_name['filename']))]
 
 def add_filepath(x):
-    return '../../datasets/train/' + x
+    return '../datasets/train/' + x
 train_name['filename'] = train_name['filename'].apply(add_filepath)
 valid_name['filename'] = valid_name['filename'].apply(add_filepath)
 train_num = train_name.shape[0]
