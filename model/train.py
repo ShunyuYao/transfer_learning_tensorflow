@@ -102,11 +102,11 @@ def _random_shear(img, label):
     )
     return image,label
 # A vector of filenames.
-train_filenames = tf.constant(train_name['filename'])
-valid_filenames = tf.constant(valid_name['filename'])
+train_filenames = tf.constant(train_name['filename'].values)
+valid_filenames = tf.constant(valid_name['filename'].values)
 # `labels[i]` is the label for the image in `filenames[i].
-train_labels = tf.constant(train_name['label'])
-valid_labels = tf.constant(valid_name['label'])
+train_labels = tf.constant(train_name['label'].values)
+valid_labels = tf.constant(valid_name['label'].values)
 
 train_dataset = tf.data.Dataset.from_tensor_slices((train_filenames,train_labels))
 train_dataset = train_dataset.map(_train_parse_function)
