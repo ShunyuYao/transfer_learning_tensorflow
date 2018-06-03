@@ -2,6 +2,8 @@ import tensorflow as tf
 import tensornets as nets
 import numpy as np
 import pandas as pd
+import random
+import time
 
 """
 fc_mid_layer is the layer before the last fc for softmax
@@ -9,22 +11,22 @@ this value means the hidden units of the layer
 0 for no fc_mid_layers
 """
 
-status = 'train'  # train for training, restore for restoring
+status = 'restore'  # train for training, restore for restoring
 input_size = 224
 img_class = 100
 channels = 3
 batch_size = 128
 num_epochs = 500
 fc_mid_layers = 0
-verbose_iters = 100
 model_name = 'Densenet201'
-droprate = 0             # use dropout before fc, 0 for no dropout
-buffer_size = 100        # the buffer size for shuffle
-best_valid_acc = 0
-learning_rate = 1e-4
-random_seed = 600        # the random seed for selecting valid image
-num_train_vars = 150     # the last nums of trainable variables
-random_aug_thresh = 0.25 # the ratio of pics for random augmentation
+droprate = 0                  # use dropout before fc, 0 for no dropout
+buffer_size = 50              # the buffer size for shuffle
+best_valid_acc = 0.0          # best valid accuracy, model will be saved if the valid accuracy bigger than this value
+learning_rate = 1.8e-4
+random_seed = 607             # the random seed for selecting valid image
+num_train_vars = 190          # the last nums of trainable variables
+num_train_vars_before = 190   # in 'restore' mode, you can change num_train_vars_before and num_train_vars to get more variables to finetune
+random_aug_thresh = 0.5       # the ratio of pics for random augmentation
 
 train_df = pd.read_table('../datasets/train.txt',
                          sep=' ', header=None)
@@ -127,33 +129,33 @@ next_element = iterator.get_next()
 train_init_op = iterator.make_initializer(train_dataset)
 valid_init_op = iterator.make_initializer(valid_dataset)
 
-# transfer learn
+
 inputs = tf.placeholder(tf.float32, [None, input_size, input_size, channels])
 outputs = tf.placeholder(tf.float32, [None, img_class])
 valids = tf.placeholder(tf.float32, [None, img_class])
-is_training = tf.placeholder(tf.bool)
 
 model = nets.DenseNet201(inputs, is_training=True, classes=img_class, stem=True)
-with tf.variable_scope('top_layer'):
-    top_layer = tf.reduce_mean(model, [1, 2], name='avgpool')
-    if droprate > 0:
-        top_layer = tf.layers.dropout(top_layer, droprate)
-    if fc_mid_layers > 0:
-        top_layer = tf.contrib.layers.fully_connected(top_layer, fc_mid_layers)
-    top_layer = tf.contrib.layers.fully_connected(top_layer, img_class)
-    top_layer = tf.contrib.layers.softmax(top_layer)
+# top layer build
+top_layer = tf.reduce_mean(model, [1, 2], name='avgpool')
+if droprate > 0:
+    top_layer = tf.layers.dropout(top_layer, droprate)
+if fc_mid_layers > 0:
+    top_layer = tf.contrib.layers.fully_connected(top_layer, fc_mid_layers)
+top_layer = tf.contrib.layers.fully_connected(top_layer, img_class)
+top_layer = tf.contrib.layers.softmax(top_layer)
 
-    loss = tf.losses.softmax_cross_entropy(outputs, top_layer)
-    acc = accuracy(outputs, top_layer)
-    valid_loss = tf.losses.softmax_cross_entropy(valids, top_layer)
-    valid_acc = accuracy(valids, top_layer)
-# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-# with tf.control_dependencies(update_ops):
-    if num_train_vars > 0:
-        trainable_vars = tf.trainable_variables()
-        train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, var_list=trainable_vars[-num_train_vars:])
-    else:
-        train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+loss = tf.losses.softmax_cross_entropy(outputs, top_layer)
+acc = accuracy(outputs, top_layer)
+valid_loss = tf.losses.softmax_cross_entropy(valids, top_layer)
+valid_acc = accuracy(valids, top_layer)
+
+if num_train_vars > 0:
+    trainable_vars = tf.trainable_variables()
+    train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss, var_list=trainable_vars[-num_train_vars:])
+else:
+    train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+
+
 
 loss_scalar = tf.summary.scalar('train_loss', loss, collections=['train'])
 acc_scalar = tf.summary.scalar('train_accuracy', acc, collections=['train'])
@@ -162,22 +164,35 @@ train_merged = tf.summary.merge_all('train') #train_merged = tf.summary.merge([l
 valid_loss_scalar = tf.summary.scalar('valid_loss', valid_loss, collections=['valid'])
 valid_acc_scalar = tf.summary.scalar('validation_accuracy', valid_acc, collections=['valid'])
 valid_merged = tf.summary.merge_all('valid') #valid_merged = tf.summary.merge([valid_loss_scalar, valid_acc_scalar])
-# merged = tf.summary.merge_all()
+
 train_writer = tf.summary.FileWriter(summary_train_dir)
 valid_writer = tf.summary.FileWriter(summary_valid_dir)
 top_layer_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='top_layer')
-init = tf.variables_initializer(top_layer_vars)#init = tf.global_variables_initializer()
 
-# config = tf.ConfigProto()
-# config.gpu_options.per_process_gpu_memory_fraction = 0.8
-saver = tf.train.Saver(max_to_keep=3)
+init = tf.global_variables_initializer() #init = tf.variables_initializer(top_layer_vars)
+
+if status == 'restore':
+    if num_train_vars_before != num_train_vars:
+        trainable_vars = tf.trainable_variables()
+        uninit_vars = trainable_vars[len(trainable_vars)-num_train_vars: len(trainable_vars)-num_train_vars_before]
+        print(uninit_vars)
+        trainable_vars = trainable_vars[:len(trainable_vars)-num_train_vars] + trainable_vars[-num_train_vars_before:]
+        saver = tf.train.Saver(var_list=trainable_vars)
+    else:
+        saver = tf.train.Saver(max_to_keep=3)
+
+elif status == 'train':
+    saver = tf.train.Saver(max_to_keep=3)
 
 with tf.Session() as sess:
 
     if status == 'train':
+
         sess.run(init)
         sess.run(model.pretrained())
+
     elif status == 'restore':
+        sess.run(init)
         saver.restore(sess, '../' + model_name + '/model.ckpt')
         print(model_name + ' model restore sucess')
 
@@ -194,10 +209,12 @@ with tf.Session() as sess:
             x_train, y_train =sess.run(next_element)
             x_train = model.preprocess(x_train)
             sess.run(train, {inputs: x_train, outputs: y_train})
+
             train_preds, summary_train =  sess.run([top_layer, train_merged], {inputs: x_train, outputs: y_train})
             valid_preds, summary_valid =  sess.run([top_layer, valid_merged], {inputs: x_valid, valids: y_valid})
             train_writer.add_summary(summary_train, n*num_iters + i)
             valid_writer.add_summary(summary_valid, n*num_iters + i)
+
             print('  %d/%d iteration' % ((i+1), num_iters))
 
             train_preds = np.argmax(train_preds, axis=1)
@@ -207,6 +224,7 @@ with tf.Session() as sess:
             print('train accuracy:', np.mean(train_preds == train_true))
             print('validation accuracy:', valid_acc)
 
+
         valid_preds = sess.run(top_layer, {inputs: x_valid})
         valid_preds = np.argmax(valid_preds, axis=1)
         valid_acc =  np.mean(valid_preds == valid_name['label'].values)
@@ -214,5 +232,6 @@ with tf.Session() as sess:
 
         if  valid_acc > best_valid_acc:
             best_valid_acc = valid_acc
+            saver = tf.train.Saver()
             print('Best valdation accuracy now is %.2f Model saved' % (best_valid_acc * 100))
             save_path = saver.save(sess, '../' + model_name + '/model.ckpt')
