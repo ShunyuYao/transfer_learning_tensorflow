@@ -11,7 +11,7 @@ this value means the hidden units of the layer
 0 for no fc_mid_layers
 """
 
-status = 'restore'  # train for training, restore for restoring
+status = 'train'  # train for training, restore for restoring
 input_size = 224
 img_class = 100
 channels = 3
@@ -24,9 +24,9 @@ buffer_size = 50              # the buffer size for shuffle
 best_valid_acc = 0.0          # best valid accuracy, model will be saved if the valid accuracy bigger than this value
 learning_rate = 1.8e-4
 random_seed = 607             # the random seed for selecting valid image
-num_train_vars = 190          # the last nums of trainable variables
-num_train_vars_before = 190   # in 'restore' mode, you can change num_train_vars_before and num_train_vars to get more variables to finetune
-random_aug_thresh = 0.5       # the ratio of pics for random augmentation
+num_train_vars = 100          # the last nums of trainable variables
+num_train_vars_before = 100   # in 'restore' mode, you can change num_train_vars_before and num_train_vars to get more variables to finetune
+random_aug_thresh = 0.25       # the ratio of pics for random augmentation
 
 train_df = pd.read_table('../datasets/train.txt',
                          sep=' ', header=None)
