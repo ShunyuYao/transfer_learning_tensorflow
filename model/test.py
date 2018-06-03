@@ -40,7 +40,7 @@ def _test_parse_function(filename):
   return image_resized
 
 # A vector of filenames.
-test_filename = tf.constant(test_df['filename'])
+test_filename = tf.constant(test_df['filename'].values)
 
 test_dataset = tf.data.Dataset.from_tensor_slices(test_filename)
 test_dataset = test_dataset.map(_test_parse_function)
